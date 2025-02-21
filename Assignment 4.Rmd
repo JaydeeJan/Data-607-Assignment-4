@@ -1,0 +1,212 @@
+---
+title: "Data 607 Assignment 4"
+author: "Jayden Jiang"
+date: "2025-02-20"
+output: html_document
+---
+
+## Library
+```{r}
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+## Read the information for .CSV file
+```{r}
+flights_data <- read.csv ("https://raw.githubusercontent.com/JaydeeJan/Data-607-Assignment-4/refs/heads/main/flights_data.csv")
+flights_data
+```
+## Clean and organize the data
+```{r}
+flights_clean <- flights_data[!apply(flights_data, 1, function(x) all(is.na(x) | x == "")),]
+flights_clean
+
+flights_clean$X[2] <- "ALASKA"
+flights_clean$X[4] <- "AM West"
+flights_clean
+
+colnames(flights_clean)[1] <- "Airline"
+colnames(flights_clean)[2] <- "Status"
+colnames(flights_clean)
+
+flights_clean
+  
+```
+
+
+## Tidy and transform the data from wide to long format
+```{r}
+
+str(flights_clean)
+
+flights_clean$Phoenix <- as.numeric((gsub(",", "", flights_clean$Phoenix)))
+
+flights_clean$Seattle <- as.numeric(gsub(",", "", flights_clean$Seattle))
+
+flights_reshape <- flights_clean %>%
+  pivot_longer(cols = -c(Airline, Status),
+               names_to = "City",
+               values_to = "Flights")
+flights_reshape
+```
+
+## Filter for delayed flights and compare delayed flights from both airlines
+```{r}
+delayed_flights <- flights_reshape %>%
+  filter(Status == "Delayed")
+
+summary_delays <- delayed_flights %>%
+  group_by(City, Airline) %>%
+  summarise(Total_Delays = sum(Flights),
+            .groups = 'drop')
+
+summary_delays
+
+```
+```{r}
+ggplot(data = summary_delays, aes(x = City, y = Total_Delays, fill = Airline)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = " Comparison of Delayed Airline by City",
+       x = "City",
+       y = "Total Delays") +
+  theme_minimal()
+```
+
+
+## Filter on-time flights and compare on-time flights from both airlines
+```{r}
+ontime_flights <- flights_reshape %>%
+  filter(Status == "On Time")
+
+summary_ontime <- ontime_flights %>%
+  group_by(City, Airline) %>%
+  summarise(Total_OnTime = sum(Flights),
+            .groups = 'drop')
+
+summary_ontime
+```
+
+```{r}
+ggplot(data = summary_ontime, aes(x = City, y = Total_OnTime, fill = Airline)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = " Comparison of On-Time Airline by City",
+       x = "City",
+       y = "Total On-Time") +
+  theme_minimal()
+```
+
+## Calculate the total and average delays for each airline across all cities.
+```{r}
+delay_analysis <- delayed_flights %>%
+  group_by(Airline) %>%
+  summarise(
+    Total_Delays = sum(Flights),
+    Avg_Delays = mean(Flights)
+  )
+
+delay_analysis
+```
+
+## Calculate the total and average on-time for each airline across all cities.
+```{r}
+ontime_analysis <- ontime_flights %>%
+  group_by(Airline) %>%
+  summarise(
+    Total_OnTime = sum(Flights),
+    Avg_OnTime = mean(Flights)
+  )
+
+ontime_analysis
+```
+
+## Data showing total delayed & on-time percentage and average delayed & on-time percentage
+```{r}
+
+total_flights <- flights_reshape %>%
+  group_by(Airline, City) %>%
+  summarize(Total_Flights = sum (Flights),
+            .groups = 'drop')
+
+total_flights
+
+flight_percentage <- flights_reshape %>%
+  left_join(total_flights, by = c("City", "Airline")) %>%
+  mutate(Percentage = (Flights / Total_Flights) * 100)
+
+flight_percentage
+
+
+# calculating the percentage of delayed and on-time performance for ALASKA Airline
+
+alaska_flights <- flights_reshape %>%
+  filter(Airline == "ALASKA")
+alaska_flights
+
+alaska_delayed <- alaska_flights %>%
+  filter(Status == "Delayed") %>%
+  summarize(Delayed_Flights = sum(Flights))
+alaska_delayed
+
+alaska_ontime <- alaska_flights %>%
+  filter(Status == "On Time") %>%
+  summarize(OnTime_Flights = sum(Flights))
+alaska_ontime
+
+alaska_total <- alaska_flights %>%
+  summarize(Total_Flights = sum(Flights))
+alaska_total
+
+alaska_delayed_percentage <- (alaska_delayed$Delayed_Flights / alaska_total$Total_Flights) * 100
+alaska_delayed_percentage 
+
+alaska_ontime_percentage <- (alaska_ontime$OnTime_Flights / alaska_total$Total_Flights) * 100
+alaska_ontime_percentage 
+
+
+# Calculating the percentage of delayed and on-time performance for AM West Airline
+
+amwest_flights <- flights_reshape %>%
+  filter(Airline == "AM West")
+amwest_flights
+
+amwest_delayed <- amwest_flights %>%
+  filter(Status == "Delayed") %>%
+  summarize(Delayed_Flights = sum(Flights))
+amwest_delayed
+
+amwest_ontime <- amwest_flights %>%
+  filter(Status == "On Time") %>%
+  summarize(OnTime_Flights = sum(Flights))
+amwest_ontime
+
+amwest_total <- amwest_flights %>%
+  summarize(Total_Flights = sum(Flights))
+amwest_total
+
+amwest_delayed_percentage <- (amwest_delayed$Delayed_Flights / amwest_total$Total_Flights) * 100
+amwest_delayed_percentage 
+
+amwest_ontime_percentage <- (amwest_ontime$OnTime_Flights / amwest_total$Total_Flights) * 100
+amwest_ontime_percentage 
+
+
+# Comparing both airlines performance
+
+airlines_analysis <- data.frame(
+  Airline = c("ALASKA", "AM West"),
+  Total_Flights = c(alaska_total$Total_Flights, amwest_total$Total_Flights),
+  Delayed_Flights = c(alaska_delayed$Delayed_Flights, amwest_delayed$Delayed_Flights),
+  OnTime_Flights = c(alaska_ontime$OnTime_Flights, amwest_ontime$OnTime_Flights),
+  Delayed_Percentage = c(alaska_delayed_percentage, amwest_delayed_percentage),
+  OnTime_Percentage = c(alaska_ontime_percentage, amwest_ontime_percentage)
+)
+
+airlines_analysis
+
+```
+
+## In Conclusion
+
+### Based on the analysis of the flights data for ALASKA and AM West, we can conclude both airlines show a good performance with over 86% of their flights arriving on time. However, AM West Airline appears to have less delays and higher on-time flights. Therefore, AM West offer a slightly more reliable service for passengers who priortized on-time performance. 
